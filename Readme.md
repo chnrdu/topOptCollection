@@ -63,3 +63,4 @@ Code test platform 代码测试平台
 | top88 | ✔ | ✔ |
 | multitop | ✔ | ✔ |
 | multitop_h | ✔ | ✔ |
+| top3d | ✔ | ✔ |
