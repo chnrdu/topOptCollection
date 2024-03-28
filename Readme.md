@@ -46,6 +46,15 @@ Examples:
     multitop_h(nx,ny,tol_out,tol_f,iter_max_in,iter_max_out,p,q,e,v,rf)
   ```
 
+4. top3d.m
+  example:
+  ```
+  top3d(300, 10, 50, 0.5, 3.0, 1.2)
+  ```
+  other tutorials can be found on https://www.top3dapp.com
+
+
+
 Code test platform 代码测试平台
 
 |Code function | MATLAB | octave|
