@@ -174,7 +174,7 @@ while change > 0.01
   %% 显示结果（同99行程序）
   fprintf(' It.:%5i Obj.:%11.4f Vol.:%7.3f ch.:%7.3f\n',loop,c, ...
     mean(xPhys(:)),change);
-  colormap(gray); imagesc(1-xPhys); caxis([0 1]); axis equal; axis off; drawnow;
+  colormap(gray); imagesc(1-xPhys); clim([0 1]); axis equal; axis off; pause(1e-3);
 end
 %————————————————
 %
