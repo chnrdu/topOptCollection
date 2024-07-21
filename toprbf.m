@@ -1,6 +1,7 @@
 %%%% An 88 LINE PARAMETERIZED LEVEL SET-BASED TOPOLOGY OPTIMIZATION CODE %%%%
-function TOPRBF(nelx,nely,volfrac)
-  %% LEVEL SET FUNCTION INITIALIZATION
+%% RBF: radial basis function
+function toprbf(nelx,nely,volfrac)
+    %% LEVEL SET FUNCTION INITIALIZATION
       r = nely*0.1;%RADIUS OF INITIAL HOLES
       hX = nelx*[repmat([1/6,5/6],1,3),repmat([0,1/3,2/3,1],1,2),1/2];
       hY = nely*[kron([0,1/2,1],ones(1,2)),kron([1/4,3/4],ones(1,4)),1/2];
