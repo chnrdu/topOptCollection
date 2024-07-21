@@ -166,7 +166,10 @@ while change > 0.01
       % 完成密度滤波，参见论文公式（9），设计变量经过滤波之后才是单元伪密度;
       xPhys(:) = (H*xnew(:))./Hs;
     end
-    if sum(xPhys(:)) > volfrac*nelx*nely, l1 = lmid; else l2 = lmid; end
+    if sum(xPhys(:)) > volfrac*nelx*nely, l1 = lmid;
+    else 
+      l2 = lmid; 
+    end
   end
   change = max(abs(xnew(:)-x(:)));
   x = xnew;
