@@ -47,8 +47,8 @@ A12 = [-6 -3  0  3; -3 -6 -3 -6;  0 -3 -6  3;  3 -6  3 -6];
 B11 = [-4  3 -2  9;  3 -4 -9  4; -2 -9 -4 -3;  9  4 -3 -4];
 B12 = [ 2 -3  4 -9; -3  2  9 -2;  4  9  2  3; -9 -2  3  2];
 KE = 1/(1-nu^2)/24*([A11 A12;A12' A11]+nu*[B11 B12;B12' B11]);
- 
-% nodenrs存放单元节点编号，按照列优先的顺序，从1到(1+nelx)*(1+nely);
+
+% nodenrs存放节点编号，按照列优先的顺序，从1到(1+nelx)*(1+nely);
 nodenrs = reshape(1:(1+nelx)*(1+nely),1+nely,1+nelx);
  
 % edofVec存放所有单元的第一个自由度编号（左下角），参见下面图1;
@@ -64,43 +64,69 @@ iK = reshape(kron(edofMat,ones(8,1))',64*nelx*nely,1);
 jK = reshape(kron(edofMat,ones(1,8))',64*nelx*nely,1);
  
 % 施加载荷，直接构造稀疏矩阵
+% generate 2*(nely+1)*(nelx+1) x 1 sparse matrix F, 
+% F is -1 at 2nd DOF of node 1
 F = sparse(2,1,-1,2*(nely+1)*(nelx+1),1);
  
 % 施加约束，与99行程序相同，唯一的区别是这里把“定义载荷约束”放在了循环体外，提高效率
+% Initalize the displacement vector U as a zero vector
 U = zeros(2*(nely+1)*(nelx+1),1);
+% THE FOLLOWING DOFS (VALUES OF DOF MATRIXES) ARE 
+% THE INDEXES OF THE NODES' DOFS IN A VECTOR
+% Define the fixed DOFs, which are 
+% 1st(x-axis) DOFs of each nodes on the left edge,
+% and 2nd (y-axis) DOF of the bottom left corner node
 fixeddofs = union([1:2:2*(nely+1)],[2*(nelx+1)*(nely+1)]);
+% All DOFs
 alldofs = [1:2*(nely+1)*(nelx+1)];
+% Free DOFs, which are not fixed
 freedofs = setdiff(alldofs,fixeddofs);
- 
+
 %% 滤波预处理
 % 根据iH、jH和sH三元组生成加权系数矩阵的稀疏矩阵H，H = sparse(iH,jH,sH);
 % H是论文公式（8）中的Hei,Hs是论文公式（9）中的Sigma(Hei);
  
 % 为数组iH、jH、sH预分配内存;
-iH = ones(nelx*nely*(2*(ceil(rmin)-1)+1)^2,1);
-jH = ones(size(iH));
-sH = zeros(size(iH));
+% improve the efficiency by preallocating memory for arrays iH, jH, sH
+total_ele = nelx*nely;
+total_neighbors= (2*(ceil(rmin)-1)+1)^2;
+total_entries = total_ele * total_neighbors;
+iH = ones(total_entries,1);
+jH = iH;
+sH = zeros(total_entries,1);
+e1 = 0;
 k = 0;
- 
+
 % 4层for循环，前两层i1、j1是遍历所有单元，后两层i2、j2是遍历当前单元附近的单元
 % 这种敏度过滤技术的本质是利用过滤半径范围内各单元敏度的加权平均值代替中心单元的敏度值
 for i1 = 1:nelx
   for j1 = 1:nely
-    e1 = (i1-1)*nely+j1;
+    e1 = e1 + 1;
     for i2 = max(i1-(ceil(rmin)-1),1):min(i1+(ceil(rmin)-1),nelx)
       for j2 = max(j1-(ceil(rmin)-1),1):min(j1+(ceil(rmin)-1),nely)
         e2 = (i2-1)*nely+j2;
         k = k+1;
         iH(k) = e1;
         jH(k) = e2;
-        sH(k) = max(0,rmin-sqrt((i1-i2)^2+(j1-j2)^2));
+        sH(k) = max(0,rmin-sqrt((i1-i2)^2+(j1-j2)^2));  % 加权系数
       end
     end
   end
 end
-H = sparse(iH,jH,sH);
+% 所生成的矩阵H是一个稀疏矩阵，每一行代表一个单元，每一行的元素是该单元与其他单元的加权系数
+% e.g., The value of H(i,j) is the weight of the j(e2)-th element in the i(e1)-th element's neighborhood
+% where, the i,j is determined by the for-loop above, and the weight(sH) is determined by the distance
+%         +---+---+---+............
+%         |-x-|-x-|-x-|............
+%         +---+---+---+............
+%         |-x-|i,j|-x-|............
+%         +---+---+---+............
+%         |-x-|-x-|-x-|............
+%         +---+---+---+............
+H = sparse(iH,jH,sH,nelx*nely,nelx*nely);
+% Hs is the sum of each row of H
+% sum the 2nd dimension of matrix H
 Hs = sum(H,2);
- 
 %% 迭代初始化
 x = repmat(volfrac,nely,nelx);   % x设计变量;
 xPhys = x;                       % xphys单元物理密度，真实密度，这里与99行不一样;
@@ -108,18 +134,19 @@ loop = 0;                        % loop存放迭代次数;
 change = 1; 
  
 %% 进入优化迭代，到此为止上面的部分都是在循环外，比99行效率提高很多
-while change > 0.01
+while change > 0.001 % && loop < 2
   loop = loop + 1;
-  
+
   %% 有限元分析求解
   % (Emin+xPhys(:)'.^penal*(E0-Emin))就是论文公式（1），由单元密度决定杨氏弹性模量;
+  % KE is 8 x 8, E is nelx*nely x 1, total elements in sK is 64*nelx*nely
   sK = reshape(KE(:)*(Emin+xPhys(:)'.^penal*(E0-Emin)),64*nelx*nely,1);
-  
+
   % 组装总体刚度矩阵的稀疏矩阵;
   % K = (K+K')/2确保总体刚度矩阵是完全对称阵，因为这会影响到MATLAB求解有限元方程的算法;
   % 当K是实对称正定矩阵时则采用Cholesky平方根分解法，反之则采用速度更慢的LU三角分解法;
   K = sparse(iK,jK,sK); K = (K+K')/2;
-  
+
   % 正式求解,KU=F;
   U(freedofs) = K(freedofs,freedofs)\F(freedofs);
   
@@ -173,7 +200,7 @@ while change > 0.01
   end
   change = max(abs(xnew(:)-x(:)));
   x = xnew;
-  
+
   %% 显示结果（同99行程序）
   fprintf(' It.:%5i Obj.:%11.4f Vol.:%7.3f ch.:%7.3f\n',loop,c, ...
     mean(xPhys(:)),change);
@@ -184,3 +211,14 @@ end
 %版权声明：本文为博主原创文章，遵循 CC 4.0 BY-SA 版权协议，转载请附上原文出处链接和本声明。
 %                        
 %原文链接：https://blog.csdn.net/BAR_WORKSHOP/article/details/108287668
+% other references:
+% https://blog.qiql.net/archives/fem1
+% https://abg.baidu.com/view/39bacd212f60ddccda38a0eb
+% https://www.jishulink.com/post/1885570
+%
+% Efficient topology optimization in MATLAB using 88 lines of code
+% by Erik Andreassen, Anders Clausen, Mattias Schevenels, 
+%    Boyan S. Lazarov, Ole Sigmund
+% Struct Multidisc Optim (2011) 43:1–16
+% DOI 10.1007/s00158-010-0594-7
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
