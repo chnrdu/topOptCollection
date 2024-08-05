@@ -1,0 +1,39 @@
+The topBuck250 code extends the new generation top99neo to problems accounting for buckling, in 2D domains.
+The code provided solves the following problems:
+
+1. Maximization of the fundamental BLF of a design, with compliance and volume constraints,
+2. Minimum volume design, with compliance and buckling constraints,
+
+other than the two simpler instances already covered in the top99neo:
+
+3. Minimum compliance design with volume constraint,
+4. Minimum volume design with compliance constraint.
+
+The features that make possible a computationally efficient and self-contained implementation of the procedure are:
+- Fast vectorized setup of the buckling eigenvalue problem and of the sensitivity computations for buckling loads,
+- Use of an aggregation function, reducing several objectives/constraints to a single one;
+- Use of the compact OC rule "ocUpdate" (DOWNLOAD LINK), based on MMA-like approximations.
+
+The "ocUpdate" is an extremely simplified version of the MMA, which makes the provided code a standalone program.
+However, the topBuck250 can be easily coupled with the MMA Matlab routine, or other mathematical programming tools, as needed by the user.
+
+The code can be downloaded from "topBuck250.m" (DOWNLOAD LINK). Save the programs and start Matlab in the same directory and run the programs by writing, for example:
+>> topBuck250(480,240,3,4,2,'N',0.5,2,[0.1,0.7,1.2],300,2,0,0,0,{['V','C'],2.5})
+for running the minimum volume design problem for a compressed column with only a compliance constraint, and:
+>> topBuck250(480,240,3,4,2,'N',0.5,2,[0.1,0.7,1.2],700,2,3,12,200,{['V','C','B'],[2.5,10]});
+for running the same problem, now aso with a lower bound on the buckling load factor (BLF_min = 10).
+
+Alternatively, the following call
+>> topBuck250(480,240,3,4,2,'N',0.5,2,[0.1,0.7,1.2],750,2,3,12,200,{['B','C','V'],[2.5,0.25]},'x0.mat')
+runs the buckling load factor maximization problem, starting from an initial guess for the density distribution, named "xInitial", and saved in the file "x0.mat".
+
+NOTE: the codes contain the external function "fsparse" that is part of the "Fast" package by Stefan Engblom. The "fsparse" package can be downloaded here:
+https://github.com/stefanengblom/stenglib
+and installed into Matlab by following the instructions contained in the README file.
+
+
+Details of the implementation are discussed in the paper:
+Ferrari, F., Sigmund, O. & Guest, J.K. Topology optimization with linearized buckling criteria in 250 lines of Matlab.
+Struct Multidisc Optim (2021). https://doi.org/10.1007/s00158-021-02854-x
+
+The ArXive version of the paper can be found here: https://arxiv.org/abs/2101.02973
