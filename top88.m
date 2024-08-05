@@ -42,10 +42,24 @@ nu = 0.3;
  
 %% 有限元预处理
 % 构造平面四节点矩形单元的单元刚度矩阵KE，详见有限元理论推导
-A11 = [12  3 -6 -3;  3 12  3  0; -6  3 12 -3; -3  0 -3 12];
-A12 = [-6 -3  0  3; -3 -6 -3 -6;  0 -3 -6  3;  3 -6  3 -6];
-B11 = [-4  3 -2  9;  3 -4 -9  4; -2 -9 -4 -3;  9  4 -3 -4];
-B12 = [ 2 -3  4 -9; -3  2  9 -2;  4  9  2  3; -9 -2  3  2];
+% This is for the plane stress condition,
+% that means the stress in the z-direction is zero, which is suitable for thin structures
+A11 = [12  3 -6 -3; ...
+        3 12  3  0; ...
+       -6  3 12 -3; ...
+       -3  0 -3 12];
+A12 = [-6 -3  0  3; ...
+       -3 -6 -3 -6; ...
+        0 -3 -6  3; ...
+        3 -6  3 -6];
+B11 = [-4  3 -2  9; ...
+        3 -4 -9  4; ...
+       -2 -9 -4 -3; ...
+        9  4 -3 -4];
+B12 = [ 2 -3  4 -9; ...
+       -3  2  9 -2; ...
+        4  9  2  3; ...
+       -9 -2  3  2];
 KE = 1/(1-nu^2)/24*([A11 A12;A12' A11]+nu*[B11 B12;B12' B11]);
 
 % nodenrs存放节点编号，按照列优先的顺序，从1到(1+nelx)*(1+nely);
@@ -134,7 +148,7 @@ loop = 0;                        % loop存放迭代次数;
 change = 1; 
  
 %% 进入优化迭代，到此为止上面的部分都是在循环外，比99行效率提高很多
-while change > 0.001 % && loop < 2
+while change > 0.001 && loop < 500
   loop = loop + 1;
 
   %% 有限元分析求解
@@ -215,7 +229,9 @@ end
 % https://blog.qiql.net/archives/fem1
 % https://abg.baidu.com/view/39bacd212f60ddccda38a0eb
 % https://www.jishulink.com/post/1885570
-%
+% https://enterfea.com/fea-by-hand-2d-plates/
+% https://engcourses-uofa.ca/books/introduction-to-solid-mechanics/finite-element-analysis/two-dimensional-solid-elements/quadrilateral-elements/
+
 % Efficient topology optimization in MATLAB using 88 lines of code
 % by Erik Andreassen, Anders Clausen, Mattias Schevenels, 
 %    Boyan S. Lazarov, Ole Sigmund
