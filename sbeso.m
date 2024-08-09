@@ -31,7 +31,7 @@ function sbeso(nelx,nely,volfrac,er,rmin)
             change=abs(sum(c(i-9:i-5))-sum(c(i-4:i)))/sum(c(i-4:i));
         end
         disp([' It.: ' sprintf('%4i',i) ' Obj.: ' sprintf('%10.4f',c(i)) ... 
-              'Vol.: ' sprintf('%6.3f',sum(sum(x))/(nelx*nely))... 
+              ' Vol.: ' sprintf('%6.3f',sum(sum(x))/(nelx*nely))... 
               ' ch.: ' sprintf('%6.3f',change)])
         % PLOT DENSITIES
         colormap(gray); imagesc(-x); axis equal; axis tight; axis off; pause(1e-6);
@@ -104,6 +104,6 @@ function [KE]=lk
 %%  This software is published with the following article:
 %%  Xiaodong Huang and Yi-Min Xie. A further review of ESO type methods for 
 %% topology optimization, Structural and Multidisciplinary Optimization, 
-%% 2010, 41(5): 671-683
+%% 2010, 41(5): 671-683. DOI: 10.1007/s00158-010-0487-9
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
