@@ -38,14 +38,14 @@ function sbeso(nelx,nely,volfrac,er,rmin)
     end
 %%%%%%%%%% OPTIMALITY CRITERIA UPDATE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [x]=adddel(nelx,nely,volfra,dc,x)
-    l1 = min(min(dc)); l2 = max(max(dc));
-    while ((l2-l1)/l2>1.0e-5)
-        th = (l1+l2)/2.0;
+    lim1 = min(min(dc)); lim2 = max(max(dc));
+    while ((lim2-lim1)/lim2>1.0e-5)
+        th = (lim1+lim2)/2.0;
         x = max(0.001,sign(dc-th));
         if sum(sum(x))-volfra*(nelx*nely) > 0
-            l1=th;
+            lim1=th;
         else
-            l2=th;
+            lim2=th;
         end
     end
 %%%%%%%%%% MESH-INDEPENDENCY FILTER %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -54,11 +54,11 @@ function [dcf]=check(nelx,nely,rmin,x,dc)
     for i=1:nelx
         for j = 1:nely 
             sum=0.0;
-            for k = max(i-floor(rmin),1):min(i+floor(rmin),nelx) 
-                for l = max(j-floor(rmin),1):min(j+floor(rmin),nely)
-                    fac = rmin - sqrt((i-k)^2 + (j-l)^2);
+            for m = max(i-floor(rmin),1):min(i+floor(rmin),nelx) 
+                for n = max(j-floor(rmin),1):min(j+floor(rmin),nely)
+                    fac = rmin - sqrt((i-m)^2 + (j-n)^2);
                     sum = sum+max(0, fac);
-                    dcf (j,i) = dcf(j,i) + max(0,fac) * dc(l,k);
+                    dcf (j,i) = dcf(j,i) + max(0,fac) * dc(n,m);
                 end
             end
             dcf(j,i) =  dcf(j,i)/sum;
