@@ -63,17 +63,45 @@ B12 = [ 2 -3  4 -9; ...
 KE = 1/(1-nu^2)/24*([A11 A12;A12' A11]+nu*[B11 B12;B12' B11]);
 
 % nodenrs存放节点编号，按照列优先的顺序，从1到(1+nelx)*(1+nely);
+%%   (nely,nelx) matrix
+%%   The symbol "+" represents a node.
+%%
+%%   +-----+-----+---------+-----+-----+-----+-> +---> x
+%%   |(1,1)|     |         |     |     |(1,x)|   |
+%%   +-----+-----+---------+-----+-----+-----+   |
+%%   |(2,1)|     |         |     |     |(2,x)|   V  
+%%   +-----+-----+---------+-----+-----+-----+   y
+%%   |(3,1)|     |         |     |     |(3,x)|     
+%%   +-----+-----n1--------n2----+-----+-----+  n1=(nely+1)*(elx-1)+ely
+%%   |     |     |(ely,elx)|     |     |     |  n2=(nely+1)* elx   +ely
+%%   +-----+-----+---------+-----+-----+-----+
+%%   |     |     |         |     |     |     |     
+%%   +-----+-----+---------+-----+-----+-----+
+%%   |(y,1)|     |         |     |     |(y,x)|
+%%   +-----+-----+---------+-----+-----+-----+
+%%   |
+%%   V
+% node 代表节点，nr 代表编号，nodenrs 是一个矩阵
 nodenrs = reshape(1:(1+nelx)*(1+nely),1+nely,1+nelx);
  
-% edofVec存放所有单元的第一个自由度编号（左下角），参见下面图1;
+% edofVec (向量) 存放所有单元的第一个自由度编号（左下角）
+% 第一个自由度指该单元的左下角节点在 x 方向上的位移自由度编号;
+% e 代表单元，dof 代表自由度, Vec 代表向量
 edofVec = reshape(2*nodenrs(1:end-1,1:end-1)+1,nelx*nely,1);
  
 % edofMat按照行存放每个单元4个节点8个自由度编号，所以列数是8，行数等于单元个数;
 % 存放顺序是：[左下x  左下y  右下x  右下y  右上x  右上y  左上x  左上y];
-% 第一个repmat将列向量edofVec复制成8列，其他自由度从第一个自由度上加或减可以得到，参见下面图2;
+% 第一个repmat将列向量edofVec复制成8列，因为有8个自由度;
+% 第二个repmat为在第一个自由度上的偏差，从而得到所有单元的节点自由度;
+% 每一行代表一个单元的8个自由度编号;
 edofMat = repmat(edofVec,1,8)+repmat([0 1 2*nely+[2 3 0 1] -2 -1],nelx*nely,1);
  
 % 根据iK、jK和sK三元组生成总体刚度矩阵的稀疏矩阵K，K = sparse(iK,jK,sK)
+% iK、jK和sK分别存放总体刚度矩阵的行、列和值，这里的总体刚度矩阵是一个对称矩阵;
+% iK和jK是行和列的坐标，sK是对应的值;
+% iK和jK是按照列优先存放，第一个单元的第一个自由度是1，第二个单元的第一个自由度是3，
+% iK is nelx*nely*8 by 8
+% jk is nelx*nely*1 by 8*8
 iK = reshape(kron(edofMat,ones(8,1))',64*nelx*nely,1);
 jK = reshape(kron(edofMat,ones(1,8))',64*nelx*nely,1);
  
@@ -123,6 +151,8 @@ for i1 = 1:nelx
         iH(k) = e1;
         jH(k) = e2;
         sH(k) = max(0,rmin-sqrt((i1-i2)^2+(j1-j2)^2));  % 加权系数
+        %sH(k) = max(0,exp(-sqrt((i1-i2)^2+(j1-j2)^2)));  % 加权系数 exp function
+        %sH(k) = max(0, cos(sqrt((i1-i2)^2 + (j1-j2)^2))/rmin*3.1415926/2); % cosine function
       end
     end
   end
@@ -148,7 +178,7 @@ loop = 0;                        % loop存放迭代次数;
 change = 1; 
  
 %% 进入优化迭代，到此为止上面的部分都是在循环外，比99行效率提高很多
-while change > 0.001 && loop < 500
+while change > 0.01 && loop < 500
   loop = loop + 1;
 
   %% 有限元分析求解
@@ -220,6 +250,7 @@ while change > 0.001 && loop < 500
     mean(xPhys(:)),change);
   colormap(gray); imagesc(1-xPhys); clim([0 1]); axis equal; axis off; pause(1e-3);
 end
+
 %————————————————
 %
 %版权声明：本文为博主原创文章，遵循 CC 4.0 BY-SA 版权协议，转载请附上原文出处链接和本声明。
