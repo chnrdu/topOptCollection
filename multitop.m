@@ -1,11 +1,21 @@
-%% 115 LINES MATLAB CODE MULTIPHASE MINIMUM COMPLIANCE TOPOLOGY OPTIMIZATION
 function multitop(nx,ny,tol_out,tol_f,iter_max_in,iter_max_out,p,q,e,v,rf)
-  alpha = zeros(nx*ny,p);
-  for i = 1:p
+%%  115 LINES MATLAB CODE MULTIPHASE MINIMUM COMPLIANCE TOPOLOGY OPTIMIZATION
+%%  nx,ny: number of elements in x and y directions
+%%  tol_out: tolerance for outer iterations
+%%  tol_f: tolerance for filter update
+%%  iter_max_in: maximum number of inner iterations
+%%  iter_max_out: maximum number of outer iterations
+%%  p: number of phases
+%%  q: penalty factor
+%%  e: Young's modulus vector of phases
+%%  v: volume fraction vector of phases
+%%  rf: filter radius
+  alpha = zeros(nx*ny,p);     % initialize design variables with domain size
+  for i = 1:p                 % set variables with different phases
     alpha(:,i) = v(i);
   end
   %% MAKE FILTER
-  [H,Hs] = make_filter (nx,ny,rf);
+  [H,Hs] = make_filter(nx,ny,rf);
   change_out = 2*tol_out; iter_out = 0;
   while (iter_out < iter_max_out) && (change_out > tol_out)
     alpha_old = alpha;
@@ -50,18 +60,38 @@ end
 function [o,alpha] = bi_top(a,b,nx,ny,p,v,e,q,alpha_old,H,Hs,iter_max_in)
   alpha = alpha_old; iter_in = 0; nu = 0.3;
   %% PREPARE FINITE ELEMENT ANALYSIS
+  % 2D plane stress constitutive matrix
   A11 = [12 3 -6 -3; 3 12 3 0; -6 3 12 -3; -3 0 -3 12];
   A12 = [-6 -3 0 3; -3 -6 -3 -6; 0 -3 -6 3; 3 -6 3 -6];
   B11 = [-4 3 -2 9; 3 -4 -9 4; -2 -9 -4 -3; 9 4 -3 -4];
   B12 = [ 2 -3 4 -9; -3 2 9 -2; 4 9 2 3; -9 -2 3 2];
   KE = 1/(1-nu^2)/24*([A11 A12;A12' A11]+nu*[B11 B12;B12' B11]);
+  % element degrees of freedom, node matrix indices
+  % reshape 1:(1+nx)*(1+ny) into 1+ny by 1+nx matrix
   nodenrs = reshape(1:(1+nx)*(1+ny),1+ny,1+nx);
+  % The vector for the 1st element DOF (x-axis)(lower left corner of element),
+  % e.g., 3 is the value for element 1, shown in the figure below
+  % ny by nx matrix to 1D vector
   edofVec = reshape(2*nodenrs(1:end-1,1:end-1)+1,nx*ny,1);
+  % Generate the element DOF matrix for all elements
+  % 8 DOs per element (2 DOF per node, 4 nodes per element)
+  % This is the DOF index for an element,
+  % e.g., edofMat(1,:) is the DOF index for element 1
+  %
+  % 1,2 ..., (2*ny+3),2*ny+4 
+  % |                |
+  % 3,4 ..., (2*ny+5),2*ny+6
   edofMat = repmat(edofVec,1,8)+repmat([0 1 2*ny+[2 3 0 1] -2 -1],nx*ny,1);
+  % outer loop
+  % nx*ny*8 by 8*1 sparse matrix to 64*nx*ny by 1 vector
   iK = reshape(kron(edofMat,ones(8,1))',64*nx*ny,1);
   jK = reshape(kron(edofMat,ones(1,8))',64*nx*ny,1);
   %% DEFINE LOADS AND SUPPORTS (HALF MBB-BEAM)
+  % specify F as 2*(ny+1)(nyx+1) by 1 sparse matrix
+  % with F(2,1) = -1
   F = sparse(2,1,-1,2*(ny+1)*(nx+1),1); % MBB
+  % for MBB, set the indices of x- of central cutting line and 
+  % y- of the lower right corner as fixed
   fixeddofs = union([1:2:2*(ny+1)],[2*(nx+1)*(ny+1)]);
   U = zeros(2*(ny+1)*(nx+1),1);
   alldofs = [1:2*(ny+1)*(nx+1)];
@@ -70,17 +100,18 @@ function [o,alpha] = bi_top(a,b,nx,ny,p,v,e,q,alpha_old,H,Hs,iter_max_in)
   while iter_in < iter_max_in
     iter_in = iter_in + 1;
     %% FE-ANALYSIS
-    E = e(1)*alpha(:,1).^q;
+    E = e(1)*alpha(:,1).^q;                              % Can be changed %
     for phase = 2:p
-      E = E + e(phase)*alpha(:,phase).^q;
+      E = E + e(phase)*alpha(:,phase).^q;                % Can be changed %
     end
+    size(E)
     sK = reshape(KE(:)*E(:)',64*nx*ny,1);
     K = sparse(iK,jK,sK); K = (K+K')/2;
     U(freedofs) = K(freedofs,freedofs)\F(freedofs);
     %% OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
-    ce = sum((U(edofMat)*KE).*U(edofMat),2);
+    ce = sum((U(edofMat)*KE).*U(edofMat),2);             % Can be changed %
     o = sum(sum(E.*ce));
-    dc = -(q*(e(a)-e(b))*alpha(:,a).^(q-1)).*ce;
+    dc = -(q*(e(a)-e(b))*alpha(:,a).^(q-1)).*ce;         % Can be changed %
     %% FILTERING OF SENSITIVITIES
     dc = H*(alpha(:,a).*dc)./Hs./max(1e-3,alpha(:,a)); dc = min(dc,0);
     %% UPDATE LOWER AND UPPER BOUNDS OF DESIGN VARIABLES
